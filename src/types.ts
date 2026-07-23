@@ -1,5 +1,24 @@
 export type TaskStatus = "done" | "active" | "crit" | "milestone";
 
+export type TaskClickAction = {
+  type: "href" | "call";
+  target: string;
+};
+
+export type ExcludeOption = {
+  weekends: boolean;
+  daysOfWeek: Set<number>; // 0=Sun, 1=Mon, ..., 6=Sat
+  dates: Set<string>; // YYYY-MM-DD
+};
+
+export type TodayMarkerOption = {
+  show: boolean;
+  strokeWidth?: string;
+  stroke?: string;
+  opacity?: string;
+  rawStyle?: string;
+};
+
 export type Task = {
   id: string;
   label: string;
@@ -8,6 +27,7 @@ export type Task = {
   end: Date;
   status?: TaskStatus;
   line: number;
+  click?: TaskClickAction;
 };
 
 export type ParseResult = {
@@ -15,6 +35,11 @@ export type ParseResult = {
   tasks: Task[];
   warnings: ParseWarning[];
   axisFormat?: string;
+  tickInterval?: { count: number; unit: "day" | "week" | "month" };
+  weekday?: number;
+  todayMarker?: TodayMarkerOption;
+  inclusiveEndDates?: boolean;
+  excludes?: ExcludeOption;
 };
 
 export type ParseWarning = {

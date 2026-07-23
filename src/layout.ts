@@ -1,4 +1,13 @@
-import type { Task, DisplaySettings, TimeScale, DateFormatMode } from "./types";
+import type {
+  Task,
+  DisplaySettings,
+  TimeScale,
+  DateFormatMode,
+  TaskClickAction,
+  ExcludeOption,
+  TodayMarkerOption,
+} from "./types";
+import { isDateExcluded } from "./parser";
 
 export type TickMark = {
   x: number;
@@ -15,12 +24,18 @@ export type BarLayout = {
   section: string;
   status?: string;
   isMilestone: boolean;
+  click?: TaskClickAction;
 };
 
 export type SectionLayout = {
   label: string;
   y: number;
   height: number;
+};
+
+export type ExcludedRange = {
+  x: number;
+  width: number;
 };
 
 export type ChartLayout = {
@@ -33,6 +48,17 @@ export type ChartLayout = {
   sections: SectionLayout[];
   title: string;
   headerHeight: number;
+  todayX?: number;
+  todayStyle?: TodayMarkerOption;
+  excludedBands?: ExcludedRange[];
+};
+
+export type LayoutOptions = {
+  axisFormat?: string;
+  tickInterval?: { count: number; unit: "day" | "week" | "month" };
+  weekday?: number;
+  todayMarker?: TodayMarkerOption;
+  excludes?: ExcludeOption;
 };
 
 function monthDiff(a: Date, b: Date): number {
@@ -49,11 +75,12 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-function startOfWeek(d: Date): Date {
+function startOfWeek(d: Date, firstDayOfWeek: number = 1): Date {
   const r = new Date(d);
   const day = r.getDay();
-  r.setDate(r.getDate() - (day === 0 ? 6 : day - 1)); // Monday
-  return r;
+  const diff = (day - firstDayOfWeek + 7) % 7;
+  r.setDate(r.getDate() - diff);
+  return new Date(r.getFullYear(), r.getMonth(), r.getDate());
 }
 
 function daysBetween(a: Date, b: Date): number {
@@ -161,9 +188,21 @@ export function computeLayout(
   tasks: Task[],
   title: string,
   settings: DisplaySettings,
-  axisFormat?: string
+  optionsInput?: string | LayoutOptions
 ): ChartLayout {
-  const { outputWidth, labelWidth, rowHeight, timeScale, dateFormatMode, sectionDisplay } = settings;
+  const options: LayoutOptions =
+    typeof optionsInput === "string" ? { axisFormat: optionsInput } : optionsInput || {};
+
+  const { axisFormat, tickInterval, weekday, todayMarker, excludes } = options;
+
+  let timeScale = settings.timeScale;
+  if (tickInterval) {
+    timeScale = tickInterval.unit;
+  }
+  const tickStep = tickInterval?.count || 1;
+  const firstDayOfWeek = weekday !== undefined ? weekday : 1;
+
+  const { outputWidth, labelWidth, rowHeight, dateFormatMode, sectionDisplay } = settings;
   const chartX = labelWidth;
   const chartWidth = outputWidth - labelWidth;
 
@@ -202,8 +241,8 @@ export function computeLayout(
       maxDate = addMonths(minDate, 1);
     }
   } else if (timeScale === "week") {
-    minDate = startOfWeek(minDate);
-    const endWeek = startOfWeek(maxDate);
+    minDate = startOfWeek(minDate, firstDayOfWeek);
+    const endWeek = startOfWeek(maxDate, firstDayOfWeek);
     if (endWeek.getTime() < maxDate.getTime()) {
       maxDate = new Date(endWeek);
       maxDate.setDate(maxDate.getDate() + 7);
@@ -218,7 +257,7 @@ export function computeLayout(
 
   if (timeScale === "month") {
     const totalMonths = monthDiff(minDate, maxDate);
-    const monthWidth = chartWidth / totalMonths;
+    const monthWidth = chartWidth / (totalMonths || 1);
 
     dateToX = (d: Date) => {
       const wholeMonths = monthDiff(minDate, startOfMonth(d));
@@ -230,7 +269,7 @@ export function computeLayout(
       return chartX + (wholeMonths + frac) * monthWidth;
     };
 
-    for (let i = 0; i <= totalMonths; i++) {
+    for (let i = 0; i <= totalMonths; i += tickStep) {
       const d = addMonths(minDate, i);
       ticks.push({
         x: chartX + i * monthWidth,
@@ -242,7 +281,7 @@ export function computeLayout(
     const totalDays = daysBetween(minDate, maxDate);
     dateToX = (d: Date) => {
       const days = daysBetween(minDate, d);
-      return chartX + (days / totalDays) * chartWidth;
+      return chartX + (totalDays > 0 ? days / totalDays : 0) * chartWidth;
     };
 
     let cur = new Date(minDate);
@@ -250,17 +289,17 @@ export function computeLayout(
       ticks.push({
         x: dateToX(cur),
         label: formatTickDate(cur, timeScale, dateFormatMode, axisFormat),
-        isMajor: cur.getDate() <= 7,
+        isMajor: cur.getDay() === firstDayOfWeek,
       });
       cur = new Date(cur);
-      cur.setDate(cur.getDate() + 7);
+      cur.setDate(cur.getDate() + 7 * tickStep);
     }
   } else {
     // day
     const totalDays = daysBetween(minDate, maxDate);
     dateToX = (d: Date) => {
       const days = daysBetween(minDate, d);
-      return chartX + (days / totalDays) * chartWidth;
+      return chartX + (totalDays > 0 ? days / totalDays : 0) * chartWidth;
     };
 
     let cur = new Date(minDate);
@@ -270,6 +309,33 @@ export function computeLayout(
         label: formatTickDate(cur, timeScale, dateFormatMode, axisFormat),
         isMajor: cur.getDate() === 1,
       });
+      cur = new Date(cur);
+      cur.setDate(cur.getDate() + tickStep);
+    }
+  }
+
+  // Today marker
+  let todayX: number | undefined = undefined;
+  if (todayMarker?.show !== false) {
+    const now = new Date();
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (todayDate >= minDate && todayDate <= maxDate) {
+      todayX = dateToX(todayDate);
+    }
+  }
+
+  // Excluded bands
+  const excludedBands: ExcludedRange[] = [];
+  if (excludes && (timeScale === "day" || timeScale === "week")) {
+    let cur = new Date(minDate);
+    while (cur < maxDate) {
+      if (isDateExcluded(cur, excludes)) {
+        const x1 = dateToX(cur);
+        const next = new Date(cur);
+        next.setDate(next.getDate() + 1);
+        const x2 = dateToX(next);
+        excludedBands.push({ x: x1, width: Math.max(x2 - x1, 1) });
+      }
       cur = new Date(cur);
       cur.setDate(cur.getDate() + 1);
     }
@@ -333,6 +399,7 @@ export function computeLayout(
           section: t.section,
           status: t.status,
           isMilestone: true,
+          click: t.click,
         });
       } else {
         bars.push({
@@ -344,6 +411,7 @@ export function computeLayout(
           section: t.section,
           status: t.status,
           isMilestone: false,
+          click: t.click,
         });
       }
       currentY += rowHeight;
@@ -366,5 +434,8 @@ export function computeLayout(
     sections,
     title,
     headerHeight,
+    todayX,
+    todayStyle: todayMarker,
+    excludedBands,
   };
 }

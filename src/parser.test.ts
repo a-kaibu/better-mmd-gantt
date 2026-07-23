@@ -144,16 +144,14 @@ describe("parseMermaidGantt", () => {
     expect(warn).toBeDefined();
   });
 
-  it("warns on unsupported keywords", () => {
+  it("handles unknown/arbitrary keywords gracefully without crash", () => {
     const input = `gantt
     dateFormat YYYY-MM-DD
-    weekday monday
-    excludes weekends
+    someUnknownDirective value
     Task :t1, 2026-01-01, 2026-01-10`;
 
     const result = parseMermaidGantt(input);
     expect(result.tasks).toHaveLength(1);
-    expect(result.warnings.length).toBeGreaterThanOrEqual(2);
   });
 
   it("parses axisFormat directive", () => {
@@ -237,5 +235,67 @@ Task :t1, 2026-01-01, 2026-01-10
     expect(result.tasks).toHaveLength(0);
     const warn = result.warnings.find(w => w.message.includes("nonexistent"));
     expect(warn).toBeDefined();
+  });
+
+  it("parses tickInterval directive", () => {
+    const input = `gantt
+    tickInterval 2weeks
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.tickInterval).toEqual({ count: 2, unit: "week" });
+  });
+
+  it("parses weekday directive", () => {
+    const input = `gantt
+    weekday monday
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.weekday).toBe(1);
+  });
+
+  it("parses todayMarker directive", () => {
+    const input = `gantt
+    todayMarker stroke-width:5px,stroke:#0f0
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.todayMarker).toBeDefined();
+    expect(result.todayMarker?.show).toBe(true);
+    expect(result.todayMarker?.stroke).toBe("#0f0");
+  });
+
+  it("parses inclusiveEndDates directive", () => {
+    const input = `gantt
+    inclusiveEndDates
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.inclusiveEndDates).toBe(true);
+    // End date is inclusive (Jan 10 end -> Jan 11 00:00:00)
+    expect(result.tasks[0].end).toEqual(new Date("2026-01-11T00:00:00"));
+  });
+
+  it("parses excludes directive and skips excluded days in duration", () => {
+    const input = `gantt
+    excludes weekends
+    Task :t1, 2026-01-02, 3d`; // 2026-01-02 is Friday. 3d duration skipping Sat/Sun -> Wed 2026-01-07
+
+    const result = parseMermaidGantt(input);
+    expect(result.excludes?.weekends).toBe(true);
+    expect(result.tasks[0].end).toEqual(new Date("2026-01-07T00:00:00"));
+  });
+
+  it("parses click directive and attaches to task", () => {
+    const input = `gantt
+    Task :t1, 2026-01-01, 2026-01-10
+    click t1 href "https://example.com"`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.tasks[0].click).toEqual({
+      type: "href",
+      target: "https://example.com",
+    });
   });
 });

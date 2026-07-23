@@ -189,7 +189,7 @@ export default function App() {
   const parseResult = useMemo(() => parseMermaidGantt(input), [input]);
 
   const layout = useMemo(
-    () => computeLayout(parseResult.tasks, parseResult.title, settings, parseResult.axisFormat),
+    () => computeLayout(parseResult.tasks, parseResult.title, settings, parseResult),
     [parseResult, settings]
   );
 

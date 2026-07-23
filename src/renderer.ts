@@ -139,12 +139,32 @@ export function renderSVG(
     );
   }
 
+  // Excluded day bands
+  if (layout.excludedBands && layout.excludedBands.length > 0) {
+    for (const band of layout.excludedBands) {
+      parts.push(
+        `<rect x="${band.x}" y="${headerHeight}" width="${band.width}" height="${height - headerHeight}" fill="#CBD5E1" opacity="0.3"/>`
+      );
+    }
+  }
+
   // Grid lines (vertical)
   for (const tick of ticks) {
     const strokeW = tick.isMajor ? 1 : 0.5;
     const opacity = tick.isMajor ? 0.6 : 0.3;
     parts.push(
       `<line x1="${tick.x}" y1="${headerHeight}" x2="${tick.x}" y2="${height}" stroke="${gridColor}" stroke-width="${strokeW}" opacity="${opacity}"/>`
+    );
+  }
+
+  // Today marker line
+  if (layout.todayX !== undefined) {
+    const style = layout.todayStyle;
+    const stroke = style?.stroke || "#EF4444";
+    const strokeWidth = style?.strokeWidth || "2";
+    const opacity = style?.opacity || "0.85";
+    parts.push(
+      `<line x1="${layout.todayX}" y1="${headerHeight}" x2="${layout.todayX}" y2="${height}" stroke="${stroke}" stroke-width="${strokeWidth}" opacity="${opacity}" stroke-dasharray="4 4"/>`
     );
   }
 
@@ -165,6 +185,17 @@ export function renderSVG(
   // Bars and labels
   for (const bar of bars) {
     const { fill, stroke } = getBarColors(bar, colorMode, barColor);
+    const click = bar.click;
+
+    if (click) {
+      if (click.type === "href") {
+        parts.push(
+          `<a href="${escapeXml(click.target)}" target="_blank" rel="noopener noreferrer">`
+        );
+      } else if (click.type === "call") {
+        parts.push(`<g cursor="pointer" onclick="${escapeXml(click.target)}">`);
+      }
+    }
 
     if (bar.isMilestone) {
       // Diamond shape
@@ -188,6 +219,14 @@ export function renderSVG(
     parts.push(
       `<text x="${labelX}" y="${labelY}" text-anchor="end" font-size="12" fill="${textColor}">${escapeXml(bar.label)}</text>`
     );
+
+    if (click) {
+      if (click.type === "href") {
+        parts.push(`</a>`);
+      } else if (click.type === "call") {
+        parts.push(`</g>`);
+      }
+    }
   }
 
   // Left border
