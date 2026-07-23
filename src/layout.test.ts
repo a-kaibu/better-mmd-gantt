@@ -163,6 +163,36 @@ describe("computeLayout", () => {
     expect(layout.bars[0].isMilestone).toBe(true);
   });
 
+  it("ensures milestone diamond bounds do not overflow chart area at boundaries", () => {
+    const tasks = [
+      makeTask({
+        id: "m_start",
+        status: "milestone",
+        start: new Date("2026-01-01"),
+        end: new Date("2026-01-01"),
+      }),
+      makeTask({
+        id: "m_end",
+        status: "milestone",
+        start: new Date("2026-12-31"),
+        end: new Date("2026-12-31"),
+      }),
+    ];
+    const layout = computeLayout(tasks, "", DEFAULT_SETTINGS);
+
+    for (const bar of layout.bars) {
+      if (bar.isMilestone) {
+        const radius = bar.height / 2.5;
+        const leftEdge = bar.x - radius;
+        const rightEdge = bar.x + radius;
+
+        // Must stay within chart area [chartX, chartX + chartWidth]
+        expect(leftEdge).toBeGreaterThanOrEqual(layout.chartX - 0.001);
+        expect(rightEdge).toBeLessThanOrEqual(layout.chartX + layout.chartWidth + 0.001);
+      }
+    }
+  });
+
   it("includes title height when title is present", () => {
     const tasks = [
       makeTask({

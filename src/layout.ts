@@ -235,16 +235,34 @@ export function computeLayout(
         displayLabel = `${t.section} / ${t.label}`;
       }
 
-      bars.push({
-        x: x1,
-        y: currentY + barPadding,
-        width: isMilestone ? barHeight : Math.max(x2 - x1, 2),
-        height: barHeight,
-        label: displayLabel,
-        section: t.section,
-        status: t.status,
-        isMilestone,
-      });
+      if (isMilestone) {
+        const radius = barHeight / 2.5;
+        const minCx = chartX + radius;
+        const maxCx = chartX + chartWidth - radius;
+        const clampedX = Math.max(minCx, Math.min(maxCx, x1));
+
+        bars.push({
+          x: clampedX,
+          y: currentY + barPadding,
+          width: barHeight,
+          height: barHeight,
+          label: displayLabel,
+          section: t.section,
+          status: t.status,
+          isMilestone: true,
+        });
+      } else {
+        bars.push({
+          x: x1,
+          y: currentY + barPadding,
+          width: Math.max(x2 - x1, 2),
+          height: barHeight,
+          label: displayLabel,
+          section: t.section,
+          status: t.status,
+          isMilestone: false,
+        });
+      }
       currentY += rowHeight;
     }
 
