@@ -186,9 +186,9 @@ describe("computeLayout", () => {
         const leftEdge = bar.x - radius;
         const rightEdge = bar.x + radius;
 
-        // Must stay within chart area [chartX, chartX + chartWidth]
-        expect(leftEdge).toBeGreaterThanOrEqual(layout.chartX - 0.001);
-        expect(rightEdge).toBeLessThanOrEqual(layout.chartX + layout.chartWidth + 0.001);
+        // Must stay within chart area with comfortable padding (>= 6px)
+        expect(leftEdge).toBeGreaterThanOrEqual(layout.chartX + 6 - 0.001);
+        expect(rightEdge).toBeLessThanOrEqual(layout.chartX + layout.chartWidth - 6 + 0.001);
       }
     }
   });

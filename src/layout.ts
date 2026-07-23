@@ -238,8 +238,9 @@ export function computeLayout(
 
       if (isMilestone) {
         const radius = barHeight / 2.5;
-        const minCx = chartX + radius;
-        const maxCx = chartX + chartWidth - radius;
+        const padding = 6;
+        const minCx = chartX + radius + padding;
+        const maxCx = chartX + chartWidth - radius - padding;
         const clampedX = Math.max(minCx, Math.min(maxCx, x1));
 
         bars.push({
