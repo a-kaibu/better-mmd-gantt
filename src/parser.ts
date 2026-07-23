@@ -1,13 +1,51 @@
 import type { Task, ParseResult, ParseWarning, TaskStatus } from "./types";
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DURATION_RE = /^(\d+)(d|w|m)$/;
 
 function parseDate(s: string): Date | null {
-  if (!DATE_RE.test(s)) return null;
-  const d = new Date(s + "T00:00:00");
-  if (isNaN(d.getTime())) return null;
-  return d;
+  const clean = s.trim();
+  let y: number, m: number, d: number;
+
+  // 1. YYYY-MM-DD or YYYY/MM/DD
+  const m1 = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (m1) {
+    y = parseInt(m1[1], 10);
+    m = parseInt(m1[2], 10) - 1;
+    d = parseInt(m1[3], 10);
+  } else {
+    // 2. YYYYMMDD
+    const m2 = clean.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m2) {
+      y = parseInt(m2[1], 10);
+      m = parseInt(m2[2], 10) - 1;
+      d = parseInt(m2[3], 10);
+    } else {
+      // 3. YY-MM-DD or YY/MM/DD
+      const m3 = clean.match(/^(\d{2})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (m3) {
+        const yy = parseInt(m3[1], 10);
+        y = yy < 70 ? 2000 + yy : 1900 + yy;
+        m = parseInt(m3[2], 10) - 1;
+        d = parseInt(m3[3], 10);
+      } else {
+        // 4. YYMMDD
+        const m4 = clean.match(/^(\d{2})(\d{2})(\d{2})$/);
+        if (m4) {
+          const yy = parseInt(m4[1], 10);
+          y = yy < 70 ? 2000 + yy : 1900 + yy;
+          m = parseInt(m4[2], 10) - 1;
+          d = parseInt(m4[3], 10);
+        } else {
+          return null;
+        }
+      }
+    }
+  }
+
+  if (m < 0 || m > 11 || d < 1 || d > 31) return null;
+  const dateObj = new Date(y, m, d);
+  if (isNaN(dateObj.getTime())) return null;
+  return dateObj;
 }
 
 function addDuration(start: Date, dur: string): Date | null {
@@ -43,7 +81,6 @@ export function parseMermaidGantt(input: string): ParseResult {
   const warnings: ParseWarning[] = [];
   let title = "";
   let currentSection = "";
-  let dateFormat = "YYYY-MM-DD";
   const taskIds = new Set<string>();
   const taskMap = new Map<string, Task>();
 
@@ -69,10 +106,7 @@ export function parseMermaidGantt(input: string): ParseResult {
     }
 
     if (trimmed.startsWith("dateFormat ")) {
-      dateFormat = trimmed.slice(11).trim();
-      if (dateFormat !== "YYYY-MM-DD") {
-        warnings.push({ line: lineNum, message: `dateFormat "${dateFormat}" は未対応です。YYYY-MM-DD として処理します。` });
-      }
+      // We accept YYMMDD, YYYY/MM/DD, YYYYMMDD, etc. gracefully
       continue;
     }
 
@@ -114,11 +148,6 @@ function parseTaskLine(
   taskMap: Map<string, Task>,
   warnings: ParseWarning[]
 ): Task | null {
-  // Format: Label :status, id, start, end
-  // Or: Label :id, start, end
-  // Or: Label :start, end
-  // Or: Label :id, after otherId, duration
-
   const colonIdx = line.indexOf(":");
   if (colonIdx === -1) {
     warnings.push({ line: lineNum, message: `タスク行を解析できません: "${line}"` });
@@ -141,8 +170,6 @@ function parseTaskLine(
     idx++;
   }
 
-  // The remaining parts can be:
-  // [id, start, end] or [start, end] or [id, after X, duration] or [start, duration]
   const remaining = parts.slice(idx);
 
   if (remaining.length === 0) {
@@ -150,9 +177,7 @@ function parseTaskLine(
     return null;
   }
 
-  // Try to figure out what's what
   if (remaining.length >= 3) {
-    // Could be [id, start, end] or [id, after X, duration]
     id = remaining[0];
     if (remaining[1].startsWith("after ")) {
       const afterId = remaining[1].slice(6).trim();
@@ -176,13 +201,11 @@ function parseTaskLine(
     startStr = remaining[1];
     endStr = remaining[2];
   } else if (remaining.length === 2) {
-    // Could be [start, end] or [id, start] (with duration)
     const firstAsDate = parseDate(remaining[0]);
     if (firstAsDate) {
       startStr = remaining[0];
       endStr = remaining[1];
     } else if (remaining[0].startsWith("after ")) {
-      // [after X, duration]
       const afterId = remaining[0].slice(6).trim();
       const refTask = taskMap.get(afterId);
       if (!refTask) {
@@ -201,13 +224,11 @@ function parseTaskLine(
       }
       return { id: label, label, section, start, end, status, line: lineNum };
     } else {
-      // [id, start+duration] => Not standard, treat first as id
       id = remaining[0];
       startStr = remaining[1];
       endStr = "";
     }
   } else if (remaining.length === 1) {
-    // Just a date range or duration? This is unusual
     startStr = remaining[0];
   }
 
@@ -229,7 +250,6 @@ function parseTaskLine(
   if (endStr) {
     end = parseDate(endStr);
     if (!end) {
-      // Try as duration
       end = addDuration(start, endStr);
       if (!end) {
         warnings.push({ line: lineNum, message: `終了日 "${endStr}" の形式が不正です。` });

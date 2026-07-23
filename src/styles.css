@@ -95,7 +95,7 @@ body {
 
 .app-main {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 440px 1fr;
   flex: 1;
   overflow: hidden;
 }
@@ -161,7 +161,7 @@ body {
 .settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .setting-item {
@@ -191,6 +191,7 @@ body {
   outline: none;
   transition: border-color var(--transition);
   font-family: var(--font-sans);
+  height: 34px;
 }
 
 .setting-input:focus,
@@ -206,6 +207,78 @@ body {
   background-repeat: no-repeat;
   background-position: right 8px center;
   padding-right: 28px;
+}
+
+/* Color Picker Input */
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  height: 34px;
+}
+
+.color-picker-input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  padding: 0;
+}
+
+.color-picker-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker-input::-webkit-color-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.color-picker-input::-moz-color-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.color-hex-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+/* Palette Presets */
+.palette-presets {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.preset-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.preset-dot:hover {
+  transform: scale(1.18);
+}
+
+.preset-dot.active {
+  border-color: white;
+  transform: scale(1.15);
 }
 
 /* ==================== Warnings ==================== */
@@ -243,17 +316,18 @@ body {
 
 /* ==================== Buttons ==================== */
 
-.button-group {
-  display: flex;
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -262,6 +336,12 @@ body {
   transition: all var(--transition);
   font-family: var(--font-sans);
   white-space: nowrap;
+  height: 36px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -269,7 +349,7 @@ body {
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   box-shadow: var(--shadow);
 }
@@ -280,7 +360,7 @@ body {
   border-color: var(--border-color);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--bg-surface-hover);
   border-color: var(--text-muted);
 }
@@ -327,8 +407,8 @@ body {
   overflow: auto;
 }
 
-.preview-svg-wrapper.bg-white {
-  background: white;
+.preview-svg-wrapper.bg-color {
+  background: transparent;
 }
 
 .preview-empty {

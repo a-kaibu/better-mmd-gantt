@@ -1,60 +1,81 @@
 import type { DisplaySettings } from "./types";
 import type { ChartLayout, BarLayout } from "./layout";
 
-const BLUE_PALETTE = {
-  bar: "#4393E4",
-  barStroke: "#2B6CB0",
-  done: "#94A3B8",
-  doneStroke: "#64748B",
-  active: "#4393E4",
-  activeStroke: "#2B6CB0",
-  crit: "#EF4444",
-  critStroke: "#B91C1C",
-  milestone: "#F59E0B",
-  milestoneStroke: "#D97706",
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    "#" +
+    [r, g, b]
+      .map((c) =>
+        Math.max(0, Math.min(255, Math.round(c)))
+          .toString(16)
+          .padStart(2, "0")
+      )
+      .join("")
+  );
+}
+
+function darken(hex: string, factor = 0.7): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r * factor, g * factor, b * factor);
+}
+
+function desaturate(hex: string, amount = 0.5): string {
+  const [r, g, b] = hexToRgb(hex);
+  const gray = r * 0.299 + g * 0.587 + b * 0.114;
+  return rgbToHex(
+    r + (gray - r) * amount,
+    g + (gray - g) * amount,
+    b + (gray - b) * amount
+  );
+}
+
+const STATUS_COLORS = {
+  done: { fill: "#94A3B8", stroke: "#64748B" },
+  active: { fill: "#22C55E", stroke: "#16A34A" },
+  crit: { fill: "#EF4444", stroke: "#B91C1C" },
+  milestone: { fill: "#F59E0B", stroke: "#D97706" },
 };
 
-const STATUS_PALETTE = {
-  bar: "#4393E4",
-  barStroke: "#2B6CB0",
-  done: "#94A3B8",
-  doneStroke: "#64748B",
-  active: "#22C55E",
-  activeStroke: "#16A34A",
-  crit: "#EF4444",
-  critStroke: "#B91C1C",
-  milestone: "#F59E0B",
-  milestoneStroke: "#D97706",
-};
-
-function getBarColors(bar: BarLayout, colorMode: string) {
-  const palette = colorMode === "status" ? STATUS_PALETTE : BLUE_PALETTE;
-
+function getBarColors(
+  bar: BarLayout,
+  colorMode: string,
+  barColor: string
+) {
   if (bar.isMilestone) {
-    return { fill: palette.milestone, stroke: palette.milestoneStroke };
+    return STATUS_COLORS.milestone;
   }
 
-  if (colorMode === "blue") {
-    if (bar.status === "done") {
-      return { fill: palette.done, stroke: palette.doneStroke };
+  if (colorMode === "status") {
+    switch (bar.status) {
+      case "done":
+        return STATUS_COLORS.done;
+      case "active":
+        return STATUS_COLORS.active;
+      case "crit":
+        return STATUS_COLORS.crit;
+      default:
+        return { fill: barColor, stroke: darken(barColor) };
     }
-    if (bar.status === "crit") {
-      return { fill: palette.crit, stroke: palette.critStroke };
-    }
-    return { fill: palette.bar, stroke: palette.barStroke };
   }
 
-  // status mode
-  switch (bar.status) {
-    case "done":
-      return { fill: palette.done, stroke: palette.doneStroke };
-    case "active":
-      return { fill: palette.active, stroke: palette.activeStroke };
-    case "crit":
-      return { fill: palette.crit, stroke: palette.critStroke };
-    default:
-      return { fill: palette.bar, stroke: palette.barStroke };
+  // custom mode — all bars use barColor, done is desaturated, crit stays red
+  if (bar.status === "done") {
+    const d = desaturate(barColor, 0.7);
+    return { fill: d, stroke: darken(d) };
   }
+  if (bar.status === "crit") {
+    return STATUS_COLORS.crit;
+  }
+  return { fill: barColor, stroke: darken(barColor) };
 }
 
 function escapeXml(s: string): string {
@@ -71,9 +92,9 @@ export function renderSVG(
   settings: DisplaySettings
 ): string {
   const { width, height, chartX, bars, ticks, sections, title, headerHeight } = layout;
-  const { background, colorMode, rowHeight } = settings;
+  const { background, bgColor, colorMode, barColor, rowHeight } = settings;
 
-  const bgColor = background === "white" ? "#FFFFFF" : "none";
+  const bgFill = background === "color" ? bgColor : "none";
   const textColor = "#1E293B";
   const gridColor = "#E2E8F0";
   const sectionBg = "#F1F5F9";
@@ -95,8 +116,8 @@ export function renderSVG(
   parts.push(`</defs>`);
 
   // Background
-  if (bgColor !== "none") {
-    parts.push(`<rect width="${width}" height="${height}" fill="${bgColor}"/>`);
+  if (bgFill !== "none") {
+    parts.push(`<rect width="${width}" height="${height}" fill="${bgFill}"/>`);
   }
 
   // Title
@@ -143,7 +164,7 @@ export function renderSVG(
 
   // Bars and labels
   for (const bar of bars) {
-    const { fill, stroke } = getBarColors(bar, colorMode);
+    const { fill, stroke } = getBarColors(bar, colorMode, barColor);
 
     if (bar.isMilestone) {
       // Diamond shape

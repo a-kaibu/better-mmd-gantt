@@ -1,4 +1,4 @@
-import type { Task, DisplaySettings } from "./types";
+import type { Task, DisplaySettings, TimeScale, DateFormatMode } from "./types";
 
 export type TickMark = {
   x: number;
@@ -60,16 +60,20 @@ function daysBetween(a: Date, b: Date): number {
   return (b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24);
 }
 
-function formatMonth(d: Date): string {
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
+function formatTickDate(d: Date, scale: TimeScale, mode: DateFormatMode): string {
+  const yyyy = String(d.getFullYear());
+  const yy = yyyy.slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
 
-function formatWeek(d: Date): string {
-  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-}
+  if (mode === "YYYY-MM-DD") return `${yyyy}-${mm}-${dd}`;
+  if (mode === "YY/MM/DD") return `${yy}/${mm}/${dd}`;
+  if (mode === "YYMMDD") return `${yy}${mm}${dd}`;
+  if (mode === "MM/DD") return `${mm}/${dd}`;
 
-function formatDay(d: Date): string {
-  return `${String(d.getMonth() + 1)}/${String(d.getDate())}`;
+  // auto mode
+  if (scale === "month") return `${yyyy}/${mm}`;
+  return `${mm}/${dd}`;
 }
 
 export function computeLayout(
@@ -77,7 +81,7 @@ export function computeLayout(
   title: string,
   settings: DisplaySettings
 ): ChartLayout {
-  const { outputWidth, labelWidth, rowHeight, timeScale, sectionDisplay } = settings;
+  const { outputWidth, labelWidth, rowHeight, timeScale, dateFormatMode, sectionDisplay } = settings;
   const chartX = labelWidth;
   const chartWidth = outputWidth - labelWidth;
 
@@ -112,7 +116,6 @@ export function computeLayout(
     } else {
       maxDate = endMonth;
     }
-    // Make sure we have at least one month span
     if (minDate.getTime() === maxDate.getTime()) {
       maxDate = addMonths(minDate, 1);
     }
@@ -149,7 +152,7 @@ export function computeLayout(
       const d = addMonths(minDate, i);
       ticks.push({
         x: chartX + i * monthWidth,
-        label: i < totalMonths ? formatMonth(d) : "",
+        label: i < totalMonths ? formatTickDate(d, timeScale, dateFormatMode) : "",
         isMajor: d.getMonth() === 0,
       });
     }
@@ -164,7 +167,7 @@ export function computeLayout(
     while (cur <= maxDate) {
       ticks.push({
         x: dateToX(cur),
-        label: formatWeek(cur),
+        label: formatTickDate(cur, timeScale, dateFormatMode),
         isMajor: cur.getDate() <= 7,
       });
       cur = new Date(cur);
@@ -182,7 +185,7 @@ export function computeLayout(
     while (cur <= maxDate) {
       ticks.push({
         x: dateToX(cur),
-        label: formatDay(cur),
+        label: formatTickDate(cur, timeScale, dateFormatMode),
         isMajor: cur.getDate() === 1,
       });
       cur = new Date(cur);
@@ -199,7 +202,6 @@ export function computeLayout(
   const sections: SectionLayout[] = [];
   const bars: BarLayout[] = [];
 
-  // Group tasks by section
   const sectionOrder: string[] = [];
   const sectionTasks = new Map<string, Task[]>();
   for (const t of tasks) {
@@ -218,7 +220,6 @@ export function computeLayout(
     const secTasks = sectionTasks.get(sec)!;
     const sectionStartY = currentY;
 
-    // Add section heading row
     if (sectionDisplay === "heading" && sec) {
       sections.push({ label: sec, y: currentY, height: rowHeight });
       currentY += rowHeight;
@@ -247,7 +248,6 @@ export function computeLayout(
       currentY += rowHeight;
     }
 
-    // Update section height for background stripe
     if (sectionDisplay === "heading" && sec) {
       sections[sections.length - 1].height = currentY - sectionStartY;
     }

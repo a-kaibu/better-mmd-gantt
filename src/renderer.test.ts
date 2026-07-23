@@ -85,14 +85,14 @@ describe("renderSVG", () => {
     expect(svg).toContain("設計フェーズ");
   });
 
-  it("renders white background when background is white", () => {
+  it("renders background color when background is color", () => {
     const tasks = [
       makeTask({
         start: new Date("2026-01-01"),
         end: new Date("2026-01-31"),
       }),
     ];
-    const settings: DisplaySettings = { ...DEFAULT_SETTINGS, background: "white" };
+    const settings: DisplaySettings = { ...DEFAULT_SETTINGS, background: "color", bgColor: "#FFFFFF" };
     const layout = computeLayout(tasks, "", settings);
     const svg = renderSVG(layout, settings);
 
@@ -113,7 +113,6 @@ describe("renderSVG", () => {
     const layout = computeLayout(tasks, "", settings);
     const svg = renderSVG(layout, settings);
 
-    // Should not have a full-size white background rect
     expect(svg).not.toContain('fill="#FFFFFF"');
   });
 
@@ -156,10 +155,9 @@ describe("renderSVG", () => {
     const layout = computeLayout(tasks, "", DEFAULT_SETTINGS);
     const svg = renderSVG(layout, DEFAULT_SETTINGS);
 
-    // Should have rect elements for the bar (plus background)
     const rectMatches = svg.match(/<rect /g);
     expect(rectMatches).not.toBeNull();
-    expect(rectMatches!.length).toBeGreaterThanOrEqual(2); // bg + bar
+    expect(rectMatches!.length).toBeGreaterThanOrEqual(2);
   });
 
   it("does not depend on external CSS", () => {
@@ -172,10 +170,8 @@ describe("renderSVG", () => {
     const layout = computeLayout(tasks, "", DEFAULT_SETTINGS);
     const svg = renderSVG(layout, DEFAULT_SETTINGS);
 
-    // Should not reference external stylesheets
     expect(svg).not.toContain("<link");
     expect(svg).not.toMatch(/@import/);
-    // Inline font-family should be present
     expect(svg).toContain('font-family:');
   });
 });

@@ -10,6 +10,33 @@ export function downloadPNG(
   height: number,
   scale: number = 2
 ): Promise<void> {
+  return renderToPNGBlob(svgString, width, height, scale).then((blob) => {
+    downloadBlob(blob, filename);
+  });
+}
+
+export function copyPNG(
+  svgString: string,
+  width: number,
+  height: number,
+  scale: number = 2
+): Promise<void> {
+  return renderToPNGBlob(svgString, width, height, scale).then((blob) => {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      throw new Error("ClipboardItem API not supported");
+    }
+    return navigator.clipboard.write([
+      new ClipboardItem({ "image/png": blob }),
+    ]);
+  });
+}
+
+function renderToPNGBlob(
+  svgString: string,
+  width: number,
+  height: number,
+  scale: number
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
     canvas.width = width * scale;
@@ -31,8 +58,7 @@ export function downloadPNG(
 
       canvas.toBlob((blob) => {
         if (blob) {
-          downloadBlob(blob, filename);
-          resolve();
+          resolve(blob);
         } else {
           reject(new Error("PNG conversion failed"));
         }

@@ -26,6 +26,27 @@ describe("parseMermaidGantt", () => {
     expect(result.tasks[1].label).toBe("実装");
   });
 
+  it("parses YYMMDD format", () => {
+    const input = `gantt
+    dateFormat YYMMDD
+    タスク1 :260801, 261031`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].start).toEqual(new Date("2026-08-01T00:00:00"));
+    expect(result.tasks[0].end).toEqual(new Date("2026-10-31T00:00:00"));
+  });
+
+  it("parses YYYY/MM/DD format", () => {
+    const input = `gantt
+    タスク1 :2026/08/01, 2026/10/31`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].start).toEqual(new Date("2026-08-01T00:00:00"));
+    expect(result.tasks[0].end).toEqual(new Date("2026-10-31T00:00:00"));
+  });
+
   it("parses tasks without explicit id", () => {
     const input = `gantt
     dateFormat YYYY-MM-DD
@@ -159,17 +180,6 @@ describe("parseMermaidGantt", () => {
     expect(result.tasks).toHaveLength(2);
     expect(result.tasks[0].section).toBe("フェーズ1");
     expect(result.tasks[1].section).toBe("フェーズ2");
-  });
-
-  it("warns on non-standard dateFormat but still parses", () => {
-    const input = `gantt
-    dateFormat DD-MM-YYYY
-    タスク :t1, 2026-01-01, 2026-01-10`;
-
-    const result = parseMermaidGantt(input);
-    const warn = result.warnings.find(w => w.message.includes("未対応"));
-    expect(warn).toBeDefined();
-    expect(result.tasks).toHaveLength(1);
   });
 
   it("warns on missing after reference", () => {

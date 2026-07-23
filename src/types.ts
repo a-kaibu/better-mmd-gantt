@@ -25,18 +25,23 @@ export type TimeScale = "day" | "week" | "month";
 
 export type SectionDisplay = "heading" | "label" | "hidden";
 
-export type ColorMode = "status" | "blue";
+export type ColorMode = "status" | "custom";
 
-export type BackgroundMode = "white" | "transparent";
+export type BackgroundMode = "color" | "transparent";
+
+export type DateFormatMode = "auto" | "YYYY-MM-DD" | "YY/MM/DD" | "YYMMDD" | "MM/DD";
 
 export type DisplaySettings = {
   outputWidth: number;
   labelWidth: number;
   rowHeight: number;
   timeScale: TimeScale;
+  dateFormatMode: DateFormatMode;
   sectionDisplay: SectionDisplay;
   colorMode: ColorMode;
+  barColor: string;
   background: BackgroundMode;
+  bgColor: string;
 };
 
 export const DEFAULT_SETTINGS: DisplaySettings = {
@@ -44,7 +49,10 @@ export const DEFAULT_SETTINGS: DisplaySettings = {
   labelWidth: 150,
   rowHeight: 32,
   timeScale: "month",
+  dateFormatMode: "auto",
   sectionDisplay: "hidden",
-  colorMode: "blue",
-  background: "white",
+  colorMode: "custom",
+  barColor: "#4393E4",
+  background: "color",
+  bgColor: "#FFFFFF",
 };

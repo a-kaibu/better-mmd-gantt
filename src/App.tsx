@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { parseMermaidGantt } from "./parser";
 import { computeLayout } from "./layout";
 import { renderSVG } from "./renderer";
-import { downloadSVG, downloadPNG } from "./export";
+import { downloadSVG, downloadPNG, copyPNG } from "./export";
 import { DEFAULT_SETTINGS } from "./types";
 import type {
   DisplaySettings,
   TimeScale,
+  DateFormatMode,
   SectionDisplay,
   ColorMode,
   BackgroundMode,
@@ -28,6 +29,21 @@ const SAMPLE_INPUT = `gantt
 
     section 論文
     論文執筆 :paper, 2027-01-01, 2027-02-28`;
+
+const BAR_COLOR_PRESETS = [
+  { label: "シティブルー", value: "#4393E4" },
+  { label: "エメラルド", value: "#10B981" },
+  { label: "バイオレット", value: "#8B5CF6" },
+  { label: "ローズ", value: "#F43F5E" },
+  { label: "アンバー", value: "#F59E0B" },
+];
+
+const BG_COLOR_PRESETS = [
+  { label: "ホワイト", value: "#FFFFFF" },
+  { label: "ダーク", value: "#0F172A" },
+  { label: "ライトグレー", value: "#F8FAFC" },
+  { label: "セピア", value: "#FDF6E3" },
+];
 
 function loadInput(): string {
   try {
@@ -99,6 +115,11 @@ export default function App() {
     []
   );
 
+  // Export & Copy Handlers
+  const [svgCopyLabel, setSvgCopyLabel] = useState("📋 SVG コピー");
+  const [pngCopyLabel, setPngCopyLabel] = useState("📋 PNG コピー");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleDownloadSVG = useCallback(() => {
     downloadSVG(svgString, "gantt-chart.svg");
   }, [svgString]);
@@ -107,16 +128,25 @@ export default function App() {
     downloadPNG(svgString, "gantt-chart.png", layout.width, layout.height, 2);
   }, [svgString, layout]);
 
-  const [copyLabel, setCopyLabel] = useState("📋 SVGコピー");
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleCopySVG = useCallback(() => {
     navigator.clipboard.writeText(svgString).then(() => {
-      setCopyLabel("✅ コピー済み");
+      setSvgCopyLabel("✅ コピー完了");
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyLabel("📋 SVGコピー"), 1500);
+      copyTimerRef.current = setTimeout(() => setSvgCopyLabel("📋 SVG コピー"), 1500);
     });
   }, [svgString]);
+
+  const handleCopyPNG = useCallback(() => {
+    copyPNG(svgString, layout.width, layout.height, 2)
+      .then(() => {
+        setPngCopyLabel("✅ コピー完了");
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setPngCopyLabel("📋 PNG コピー"), 1500);
+      })
+      .catch((err) => {
+        alert("PNGのコピーに失敗しました: " + (err.message || err));
+      });
+  }, [svgString, layout]);
 
   return (
     <div className="app">
@@ -141,7 +171,7 @@ export default function App() {
               className="mermaid-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="gantt&#10;    title ...&#10;    section ...&#10;    タスク :id, start, end"
+              placeholder="gantt&#10;    title ...&#10;    section ...&#10;    タスク :id, 2026-08-01, 2026-10-31"
               spellCheck={false}
             />
           </div>
@@ -167,9 +197,10 @@ export default function App() {
                   }
                 />
               </div>
+
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-label-width">
-                  ラベル幅 (px)
+                  左ラベル幅 (px)
                 </label>
                 <input
                   id="setting-label-width"
@@ -184,6 +215,7 @@ export default function App() {
                   }
                 />
               </div>
+
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-row-height">
                   行の高さ (px)
@@ -201,6 +233,7 @@ export default function App() {
                   }
                 />
               </div>
+
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-timescale">
                   時間軸
@@ -213,11 +246,32 @@ export default function App() {
                     updateSetting("timeScale", e.target.value as TimeScale)
                   }
                 >
-                  <option value="month">月</option>
-                  <option value="week">週</option>
-                  <option value="day">日</option>
+                  <option value="month">月 (Month)</option>
+                  <option value="week">週 (Week)</option>
+                  <option value="day">日 (Day)</option>
                 </select>
               </div>
+
+              <div className="setting-item">
+                <label className="setting-label" htmlFor="setting-date-format">
+                  日付表示フォーマット
+                </label>
+                <select
+                  id="setting-date-format"
+                  className="setting-select"
+                  value={settings.dateFormatMode}
+                  onChange={(e) =>
+                    updateSetting("dateFormatMode", e.target.value as DateFormatMode)
+                  }
+                >
+                  <option value="auto">標準 (自動)</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="YY/MM/DD">YY/MM/DD</option>
+                  <option value="YYMMDD">YYMMDD</option>
+                  <option value="MM/DD">MM/DD</option>
+                </select>
+              </div>
+
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-section">
                   セクション表示
@@ -238,38 +292,98 @@ export default function App() {
                   <option value="label">左ラベル</option>
                 </select>
               </div>
+
+              {/* Color Mode & Color Picker */}
               <div className="setting-item">
-                <label className="setting-label" htmlFor="setting-color">
-                  色
+                <label className="setting-label" htmlFor="setting-color-mode">
+                  テーマ色
                 </label>
                 <select
-                  id="setting-color"
+                  id="setting-color-mode"
                   className="setting-select"
                   value={settings.colorMode}
                   onChange={(e) =>
                     updateSetting("colorMode", e.target.value as ColorMode)
                   }
                 >
-                  <option value="blue">青固定</option>
-                  <option value="status">状態別</option>
+                  <option value="custom">カスタム色</option>
+                  <option value="status">状態別 (Done/Active/Crit)</option>
                 </select>
               </div>
+
               <div className="setting-item">
-                <label className="setting-label" htmlFor="setting-bg">
-                  背景
+                <label className="setting-label" htmlFor="setting-bar-color">
+                  バーの色
+                </label>
+                <div className="color-picker-wrapper">
+                  <input
+                    id="setting-bar-color"
+                    type="color"
+                    className="color-picker-input"
+                    value={settings.barColor}
+                    onChange={(e) => updateSetting("barColor", e.target.value)}
+                  />
+                  <span className="color-hex-text">{settings.barColor}</span>
+                </div>
+                <div className="palette-presets">
+                  {BAR_COLOR_PRESETS.map((p) => (
+                    <button
+                      key={p.value}
+                      className={`preset-dot ${settings.barColor.toUpperCase() === p.value.toUpperCase() ? "active" : ""}`}
+                      style={{ backgroundColor: p.value }}
+                      title={p.label}
+                      onClick={() => updateSetting("barColor", p.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Background Mode & Color Picker */}
+              <div className="setting-item">
+                <label className="setting-label" htmlFor="setting-bg-mode">
+                  背景指定
                 </label>
                 <select
-                  id="setting-bg"
+                  id="setting-bg-mode"
                   className="setting-select"
                   value={settings.background}
                   onChange={(e) =>
                     updateSetting("background", e.target.value as BackgroundMode)
                   }
                 >
-                  <option value="white">白</option>
+                  <option value="color">背景色あり</option>
                   <option value="transparent">透明</option>
                 </select>
               </div>
+
+              {settings.background === "color" && (
+                <div className="setting-item">
+                  <label className="setting-label" htmlFor="setting-bg-color">
+                    背景色
+                  </label>
+                  <div className="color-picker-wrapper">
+                    <input
+                      id="setting-bg-color"
+                      type="color"
+                      className="color-picker-input"
+                      value={settings.bgColor}
+                      onChange={(e) => updateSetting("bgColor", e.target.value)}
+                    />
+                    <span className="color-hex-text">{settings.bgColor}</span>
+                  </div>
+                  <div className="palette-presets">
+                    {BG_COLOR_PRESETS.map((p) => (
+                      <button
+                        key={p.value}
+                        className={`preset-dot ${settings.bgColor.toUpperCase() === p.value.toUpperCase() ? "active" : ""}`}
+                        style={{ backgroundColor: p.value }}
+                        title={p.label}
+                        onClick={() => updateSetting("bgColor", p.value)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -290,17 +404,17 @@ export default function App() {
             </div>
           )}
 
-          {/* Actions */}
+          {/* Export & Copy Actions */}
           <div className="panel-section">
             <div className="section-title">保存・コピー</div>
-            <div className="button-group">
+            <div className="export-grid">
               <button
                 id="btn-download-svg"
                 className="btn btn-primary"
                 onClick={handleDownloadSVG}
                 disabled={parseResult.tasks.length === 0}
               >
-                📥 SVG保存
+                📥 SVG 保存
               </button>
               <button
                 id="btn-download-png"
@@ -308,7 +422,7 @@ export default function App() {
                 onClick={handleDownloadPNG}
                 disabled={parseResult.tasks.length === 0}
               >
-                📥 PNG保存
+                📥 PNG 保存
               </button>
               <button
                 id="btn-copy-svg"
@@ -316,7 +430,15 @@ export default function App() {
                 onClick={handleCopySVG}
                 disabled={parseResult.tasks.length === 0}
               >
-                {copyLabel}
+                {svgCopyLabel}
+              </button>
+              <button
+                id="btn-copy-png"
+                className="btn btn-secondary"
+                onClick={handleCopyPNG}
+                disabled={parseResult.tasks.length === 0}
+              >
+                {pngCopyLabel}
               </button>
             </div>
           </div>
@@ -333,7 +455,7 @@ export default function App() {
           <div className="preview-container">
             {parseResult.tasks.length > 0 ? (
               <div
-                className={`preview-svg-wrapper ${settings.background === "white" ? "bg-white" : ""}`}
+                className={`preview-svg-wrapper ${settings.background === "color" ? "bg-color" : ""}`}
                 dangerouslySetInnerHTML={{ __html: svgString }}
               />
             ) : (
