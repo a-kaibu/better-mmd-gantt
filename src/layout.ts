@@ -60,7 +60,83 @@ function daysBetween(a: Date, b: Date): number {
   return (b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24);
 }
 
-function formatTickDate(d: Date, scale: TimeScale, mode: DateFormatMode): string {
+const MONTH_NAMES_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const MONTH_NAMES_LONG = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const WEEKDAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_NAMES_LONG = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+];
+
+function getWeekOfYear(d: Date): number {
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+  }
+  return 1 + Math.ceil((firstThursday - target.valueOf()) / (7 * 24 * 3600 * 1000));
+}
+
+export function formatDateWithPattern(d: Date, fmt: string): string {
+  const yyyy = d.getFullYear();
+  const yy = String(yyyy).slice(2);
+  const month = d.getMonth();
+  const mm = String(month + 1).padStart(2, "0");
+  const m = String(month + 1);
+  const day = d.getDate();
+  const dd = String(day).padStart(2, "0");
+  const dStr = String(day);
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
+  const quarter = String(Math.floor(month / 3) + 1);
+  const week = String(getWeekOfYear(d)).padStart(2, "0");
+
+  return fmt.replace(/%(-|_)?([YymbBdeEhHMSAaWwUuQq%])/g, (match, modifier, code) => {
+    if (match === "%%") return "%";
+    switch (code) {
+      case "Y": return String(yyyy);
+      case "y": return yy;
+      case "m": return modifier ? m : mm;
+      case "b":
+      case "h": return MONTH_NAMES_SHORT[month];
+      case "B": return MONTH_NAMES_LONG[month];
+      case "d": return modifier ? dStr : dd;
+      case "e": return dStr;
+      case "H": return hours;
+      case "M": return minutes;
+      case "S": return seconds;
+      case "A": return WEEKDAY_NAMES_LONG[d.getDay()];
+      case "a": return WEEKDAY_NAMES_SHORT[d.getDay()];
+      case "w": return String(d.getDay());
+      case "W":
+      case "U":
+      case "u": return week;
+      case "Q":
+      case "q": return quarter;
+      default: return match;
+    }
+  });
+}
+
+function formatTickDate(
+  d: Date,
+  scale: TimeScale,
+  mode: DateFormatMode,
+  axisFormat?: string
+): string {
+  if (axisFormat && mode === "auto") {
+    return formatDateWithPattern(d, axisFormat);
+  }
+
   const yyyy = String(d.getFullYear());
   const yy = yyyy.slice(2);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -72,6 +148,10 @@ function formatTickDate(d: Date, scale: TimeScale, mode: DateFormatMode): string
   if (mode === "YY/MM") return `${yy}/${mm}`;
   if (mode === "MM/DD") return `${mm}/${dd}`;
 
+  if (axisFormat) {
+    return formatDateWithPattern(d, axisFormat);
+  }
+
   // auto mode
   if (scale === "month") return `${yyyy}/${mm}`;
   return `${mm}/${dd}`;
@@ -80,7 +160,8 @@ function formatTickDate(d: Date, scale: TimeScale, mode: DateFormatMode): string
 export function computeLayout(
   tasks: Task[],
   title: string,
-  settings: DisplaySettings
+  settings: DisplaySettings,
+  axisFormat?: string
 ): ChartLayout {
   const { outputWidth, labelWidth, rowHeight, timeScale, dateFormatMode, sectionDisplay } = settings;
   const chartX = labelWidth;
@@ -153,7 +234,7 @@ export function computeLayout(
       const d = addMonths(minDate, i);
       ticks.push({
         x: chartX + i * monthWidth,
-        label: i < totalMonths ? formatTickDate(d, timeScale, dateFormatMode) : "",
+        label: i < totalMonths ? formatTickDate(d, timeScale, dateFormatMode, axisFormat) : "",
         isMajor: d.getMonth() === 0,
       });
     }
@@ -168,7 +249,7 @@ export function computeLayout(
     while (cur <= maxDate) {
       ticks.push({
         x: dateToX(cur),
-        label: formatTickDate(cur, timeScale, dateFormatMode),
+        label: formatTickDate(cur, timeScale, dateFormatMode, axisFormat),
         isMajor: cur.getDate() <= 7,
       });
       cur = new Date(cur);
@@ -186,7 +267,7 @@ export function computeLayout(
     while (cur <= maxDate) {
       ticks.push({
         x: dateToX(cur),
-        label: formatTickDate(cur, timeScale, dateFormatMode),
+        label: formatTickDate(cur, timeScale, dateFormatMode, axisFormat),
         isMajor: cur.getDate() === 1,
       });
       cur = new Date(cur);

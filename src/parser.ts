@@ -66,7 +66,6 @@ function addDuration(start: Date, dur: string): Date | null {
 
 const KNOWN_STATUSES = new Set(["done", "active", "crit", "milestone"]);
 const UNSUPPORTED_KEYWORDS = new Set([
-  "axisFormat",
   "tickInterval",
   "weekday",
   "todayMarker",
@@ -81,6 +80,7 @@ export function parseMermaidGantt(input: string): ParseResult {
   const warnings: ParseWarning[] = [];
   let title = "";
   let currentSection = "";
+  let axisFormat: string | undefined = undefined;
   const taskIds = new Set<string>();
   const taskMap = new Map<string, Task>();
 
@@ -92,6 +92,14 @@ export function parseMermaidGantt(input: string): ParseResult {
     const trimmed = raw.trim();
 
     if (!trimmed || trimmed.startsWith("%%")) continue;
+
+    if (trimmed.startsWith("```")) {
+      const rest = trimmed.replace(/^```/, "").trim();
+      if (!foundGantt && (rest === "gantt" || rest.startsWith("gantt"))) {
+        foundGantt = true;
+      }
+      continue;
+    }
 
     if (!foundGantt) {
       if (trimmed === "gantt") {
@@ -106,6 +114,18 @@ export function parseMermaidGantt(input: string): ParseResult {
     }
 
     if (trimmed.startsWith("dateFormat ")) {
+      continue;
+    }
+
+    if (trimmed.startsWith("axisFormat ")) {
+      let fmt = trimmed.slice(11).trim();
+      if (
+        (fmt.startsWith('"') && fmt.endsWith('"')) ||
+        (fmt.startsWith("'") && fmt.endsWith("'"))
+      ) {
+        fmt = fmt.slice(1, -1);
+      }
+      axisFormat = fmt;
       continue;
     }
 
@@ -137,7 +157,7 @@ export function parseMermaidGantt(input: string): ParseResult {
     warnings.push({ line: 1, message: '"gantt" keyword not found.' });
   }
 
-  return { title, tasks, warnings };
+  return { title, tasks, warnings, axisFormat };
 }
 
 function parseTaskLine(

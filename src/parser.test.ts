@@ -147,13 +147,59 @@ describe("parseMermaidGantt", () => {
   it("warns on unsupported keywords", () => {
     const input = `gantt
     dateFormat YYYY-MM-DD
-    axisFormat %Y-%m
+    weekday monday
     excludes weekends
     Task :t1, 2026-01-01, 2026-01-10`;
 
     const result = parseMermaidGantt(input);
     expect(result.tasks).toHaveLength(1);
     expect(result.warnings.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("parses axisFormat directive", () => {
+    const input = `gantt
+    dateFormat YYYY-MM-DD
+    axisFormat %m/%d
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.axisFormat).toBe("%m/%d");
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("parses axisFormat directive with quotes", () => {
+    const input = `gantt
+    axisFormat "%Y-%m-%d"
+    Task :t1, 2026-01-01, 2026-01-10`;
+
+    const result = parseMermaidGantt(input);
+    expect(result.axisFormat).toBe("%Y-%m-%d");
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("parses gantt enclosed in ```mermaid code block", () => {
+    const input = `\`\`\`mermaid
+gantt
+    title Roadmap
+    Task :t1, 2026-01-01, 2026-01-10
+\`\`\``;
+
+    const result = parseMermaidGantt(input);
+    expect(result.title).toBe("Roadmap");
+    expect(result.tasks).toHaveLength(1);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("parses gantt enclosed in ```gantt code block", () => {
+    const input = `\`\`\`gantt
+title Roadmap
+Task :t1, 2026-01-01, 2026-01-10
+\`\`\``;
+
+    const result = parseMermaidGantt(input);
+    expect(result.title).toBe("Roadmap");
+    expect(result.tasks).toHaveLength(1);
+    expect(result.warnings).toHaveLength(0);
   });
 
   it("skips comments and empty lines", () => {

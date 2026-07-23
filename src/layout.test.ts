@@ -232,4 +232,15 @@ describe("computeLayout", () => {
       expect(layout.bars[i].y).toBeGreaterThan(layout.bars[i - 1].y);
     }
   });
+
+  it("applies custom axisFormat to tick labels", () => {
+    const tasks = [
+      makeTask({
+        start: new Date("2026-08-01"),
+        end: new Date("2026-10-31"),
+      }),
+    ];
+    const layout = computeLayout(tasks, "", DEFAULT_SETTINGS, "%m/%d");
+    expect(layout.ticks[0].label).toBe("08/01");
+  });
 });

@@ -14,6 +14,7 @@ export type ParseResult = {
   title: string;
   tasks: Task[];
   warnings: ParseWarning[];
+  axisFormat?: string;
 };
 
 export type ParseWarning = {
