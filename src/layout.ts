@@ -69,6 +69,7 @@ function formatTickDate(d: Date, scale: TimeScale, mode: DateFormatMode): string
   if (mode === "YYYY-MM-DD") return `${yyyy}-${mm}-${dd}`;
   if (mode === "YY/MM/DD") return `${yy}/${mm}/${dd}`;
   if (mode === "YYMMDD") return `${yy}${mm}${dd}`;
+  if (mode === "YY/MM") return `${yy}/${mm}`;
   if (mode === "MM/DD") return `${mm}/${dd}`;
 
   // auto mode

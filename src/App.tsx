@@ -309,6 +309,7 @@ export default function App() {
                   <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                   <option value="YY/MM/DD">YY/MM/DD</option>
                   <option value="YYMMDD">YYMMDD</option>
+                  <option value="YY/MM">YY/MM</option>
                   <option value="MM/DD">MM/DD</option>
                 </select>
               </div>

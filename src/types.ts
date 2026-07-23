@@ -29,7 +29,7 @@ export type ColorMode = "status" | "custom";
 
 export type BackgroundMode = "color" | "transparent";
 
-export type DateFormatMode = "auto" | "YYYY-MM-DD" | "YY/MM/DD" | "YYMMDD" | "MM/DD";
+export type DateFormatMode = "auto" | "YYYY-MM-DD" | "YY/MM/DD" | "YYMMDD" | "YY/MM" | "MM/DD";
 
 export type DisplaySettings = {
   outputWidth: number;
