@@ -106,7 +106,6 @@ export function parseMermaidGantt(input: string): ParseResult {
     }
 
     if (trimmed.startsWith("dateFormat ")) {
-      // We accept YYMMDD, YYYY/MM/DD, YYYYMMDD, etc. gracefully
       continue;
     }
 
@@ -118,7 +117,7 @@ export function parseMermaidGantt(input: string): ParseResult {
     // Check unsupported keywords
     const firstWord = trimmed.split(/\s/)[0];
     if (UNSUPPORTED_KEYWORDS.has(firstWord)) {
-      warnings.push({ line: lineNum, message: `"${firstWord}" は未対応です。` });
+      warnings.push({ line: lineNum, message: `"${firstWord}" is not supported.` });
       continue;
     }
 
@@ -126,7 +125,7 @@ export function parseMermaidGantt(input: string): ParseResult {
     const taskResult = parseTaskLine(trimmed, lineNum, currentSection, taskMap, warnings);
     if (taskResult) {
       if (taskIds.has(taskResult.id)) {
-        warnings.push({ line: lineNum, message: `タスクID "${taskResult.id}" が重複しています。` });
+        warnings.push({ line: lineNum, message: `Duplicate task ID: "${taskResult.id}"` });
       }
       taskIds.add(taskResult.id);
       taskMap.set(taskResult.id, taskResult);
@@ -135,7 +134,7 @@ export function parseMermaidGantt(input: string): ParseResult {
   }
 
   if (!foundGantt && lines.some(l => l.trim().length > 0)) {
-    warnings.push({ line: 1, message: '"gantt" キーワードが見つかりません。' });
+    warnings.push({ line: 1, message: '"gantt" keyword not found.' });
   }
 
   return { title, tasks, warnings };
@@ -150,7 +149,7 @@ function parseTaskLine(
 ): Task | null {
   const colonIdx = line.indexOf(":");
   if (colonIdx === -1) {
-    warnings.push({ line: lineNum, message: `タスク行を解析できません: "${line}"` });
+    warnings.push({ line: lineNum, message: `Line cannot be parsed: "${line}"` });
     return null;
   }
 
@@ -173,7 +172,7 @@ function parseTaskLine(
   const remaining = parts.slice(idx);
 
   if (remaining.length === 0) {
-    warnings.push({ line: lineNum, message: `タスクの期間を解決できません。` });
+    warnings.push({ line: lineNum, message: "Cannot resolve task duration." });
     return null;
   }
 
@@ -183,7 +182,7 @@ function parseTaskLine(
       const afterId = remaining[1].slice(6).trim();
       const refTask = taskMap.get(afterId);
       if (!refTask) {
-        warnings.push({ line: lineNum, message: `参照タスク "${afterId}" が見つかりません。` });
+        warnings.push({ line: lineNum, message: `Referenced task "${afterId}" not found.` });
         return null;
       }
       const start = new Date(refTask.end);
@@ -191,7 +190,7 @@ function parseTaskLine(
       if (!end) {
         const endDate = parseDate(remaining[2]);
         if (!endDate) {
-          warnings.push({ line: lineNum, message: `期間 "${remaining[2]}" を解析できません。` });
+          warnings.push({ line: lineNum, message: `Invalid duration: "${remaining[2]}"` });
           return null;
         }
         return { id: id || label, label, section, start, end: endDate, status, line: lineNum };
@@ -209,7 +208,7 @@ function parseTaskLine(
       const afterId = remaining[0].slice(6).trim();
       const refTask = taskMap.get(afterId);
       if (!refTask) {
-        warnings.push({ line: lineNum, message: `参照タスク "${afterId}" が見つかりません。` });
+        warnings.push({ line: lineNum, message: `Referenced task "${afterId}" not found.` });
         return null;
       }
       const start = new Date(refTask.end);
@@ -217,7 +216,7 @@ function parseTaskLine(
       if (!end) {
         const endDate = parseDate(remaining[1]);
         if (!endDate) {
-          warnings.push({ line: lineNum, message: `期間 "${remaining[1]}" を解析できません。` });
+          warnings.push({ line: lineNum, message: `Invalid duration: "${remaining[1]}"` });
           return null;
         }
         return { id: label, label, section, start, end: endDate, status, line: lineNum };
@@ -237,11 +236,11 @@ function parseTaskLine(
   if (startStr) {
     start = parseDate(startStr);
     if (!start) {
-      warnings.push({ line: lineNum, message: `開始日 "${startStr}" の形式が不正です。` });
+      warnings.push({ line: lineNum, message: `Invalid start date: "${startStr}"` });
       return null;
     }
   } else {
-    warnings.push({ line: lineNum, message: `タスクの期間を解決できません。` });
+    warnings.push({ line: lineNum, message: "Cannot resolve task duration." });
     return null;
   }
 
@@ -252,17 +251,17 @@ function parseTaskLine(
     if (!end) {
       end = addDuration(start, endStr);
       if (!end) {
-        warnings.push({ line: lineNum, message: `終了日 "${endStr}" の形式が不正です。` });
+        warnings.push({ line: lineNum, message: `Invalid end date: "${endStr}"` });
         return null;
       }
     }
   } else {
-    warnings.push({ line: lineNum, message: `タスクの期間を解決できません。` });
+    warnings.push({ line: lineNum, message: "Cannot resolve task duration." });
     return null;
   }
 
   if (end < start) {
-    warnings.push({ line: lineNum, message: `終了日が開始日より前です。` });
+    warnings.push({ line: lineNum, message: "End date is before start date." });
     return null;
   }
 

@@ -18,31 +18,30 @@ const STORAGE_KEY_INPUT = "mmd-gantt-input";
 const STORAGE_KEY_SETTINGS = "mmd-gantt-settings";
 
 const SAMPLE_INPUT = `gantt
-    title 今後の方針
+    title Project Roadmap
     dateFormat YYYY-MM-DD
 
-    section 実装
-    実装 :impl, 2026-08-01, 2026-10-31
+    section Implementation
+    Design :design, 2026-08-01, 2026-08-31
+    Development :impl, 2026-09-01, 2026-10-31
 
-    section 実験
-    実験 :exp, 2026-11-01, 2026-12-31
-
-    section 論文
-    論文執筆 :paper, 2027-01-01, 2027-02-28`;
+    section Evaluation
+    Testing :test, 2026-11-01, 2026-12-15
+    Release :milestone, rel, 2026-12-31, 2026-12-31`;
 
 const BAR_COLOR_PRESETS = [
-  { label: "シティブルー", value: "#4393E4" },
-  { label: "エメラルド", value: "#10B981" },
-  { label: "バイオレット", value: "#8B5CF6" },
-  { label: "ローズ", value: "#F43F5E" },
-  { label: "アンバー", value: "#F59E0B" },
+  { label: "City Blue", value: "#4393E4" },
+  { label: "Emerald", value: "#10B981" },
+  { label: "Violet", value: "#8B5CF6" },
+  { label: "Rose", value: "#F43F5E" },
+  { label: "Amber", value: "#F59E0B" },
 ];
 
 const BG_COLOR_PRESETS = [
-  { label: "ホワイト", value: "#FFFFFF" },
-  { label: "ダーク", value: "#0F172A" },
-  { label: "ライトグレー", value: "#F8FAFC" },
-  { label: "セピア", value: "#FDF6E3" },
+  { label: "White", value: "#FFFFFF" },
+  { label: "Dark", value: "#0F172A" },
+  { label: "Light Gray", value: "#F8FAFC" },
+  { label: "Sepia", value: "#FDF6E3" },
 ];
 
 function loadInput(): string {
@@ -144,7 +143,7 @@ export default function App() {
         copyTimerRef.current = setTimeout(() => setPngCopyLabel("📋 PNG Copy"), 1500);
       })
       .catch((err) => {
-        alert("PNGのコピーに失敗しました: " + (err.message || err));
+        alert("Failed to copy PNG: " + (err.message || err));
       });
   }, [svgString, layout]);
 
@@ -156,7 +155,7 @@ export default function App() {
           <h1 className="app-title">Mermaid Gantt Compact</h1>
         </div>
         <span className="app-subtitle">
-          ガント記法 → コンパクトSVG/PNG
+          Convert Mermaid gantt charts into compact SVG / PNG
         </span>
       </header>
 
@@ -165,24 +164,24 @@ export default function App() {
         <div className="panel-left">
           {/* Input */}
           <div className="panel-section">
-            <div className="section-title">Mermaid入力</div>
+            <div className="section-title">Mermaid Input</div>
             <textarea
               id="mermaid-input"
               className="mermaid-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="gantt&#10;    title ...&#10;    section ...&#10;    タスク :id, 2026-08-01, 2026-10-31"
+              placeholder="gantt&#10;    title ...&#10;    section ...&#10;    Task :id, 2026-08-01, 2026-10-31"
               spellCheck={false}
             />
           </div>
 
           {/* Settings */}
           <div className="panel-section">
-            <div className="section-title">表示設定</div>
+            <div className="section-title">Display Settings</div>
             <div className="settings-grid">
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-width">
-                  出力幅 (px)
+                  Output Width (px)
                 </label>
                 <input
                   id="setting-width"
@@ -200,7 +199,7 @@ export default function App() {
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-label-width">
-                  左ラベル幅 (px)
+                  Label Width (px)
                 </label>
                 <input
                   id="setting-label-width"
@@ -218,7 +217,7 @@ export default function App() {
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-row-height">
-                  行の高さ (px)
+                  Row Height (px)
                 </label>
                 <input
                   id="setting-row-height"
@@ -236,7 +235,7 @@ export default function App() {
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-timescale">
-                  時間軸
+                  Time Scale
                 </label>
                 <select
                   id="setting-timescale"
@@ -246,15 +245,15 @@ export default function App() {
                     updateSetting("timeScale", e.target.value as TimeScale)
                   }
                 >
-                  <option value="month">月 (Month)</option>
-                  <option value="week">週 (Week)</option>
-                  <option value="day">日 (Day)</option>
+                  <option value="month">Month</option>
+                  <option value="week">Week</option>
+                  <option value="day">Day</option>
                 </select>
               </div>
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-date-format">
-                  日付表示フォーマット
+                  Date Format
                 </label>
                 <select
                   id="setting-date-format"
@@ -264,7 +263,7 @@ export default function App() {
                     updateSetting("dateFormatMode", e.target.value as DateFormatMode)
                   }
                 >
-                  <option value="auto">標準 (自動)</option>
+                  <option value="auto">Auto (Default)</option>
                   <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                   <option value="YY/MM/DD">YY/MM/DD</option>
                   <option value="YYMMDD">YYMMDD</option>
@@ -274,7 +273,7 @@ export default function App() {
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-section">
-                  セクション表示
+                  Sections
                 </label>
                 <select
                   id="setting-section"
@@ -287,16 +286,16 @@ export default function App() {
                     )
                   }
                 >
-                  <option value="hidden">非表示</option>
-                  <option value="heading">見出し行</option>
-                  <option value="label">左ラベル</option>
+                  <option value="hidden">Hidden</option>
+                  <option value="heading">Heading Row</option>
+                  <option value="label">Left Label</option>
                 </select>
               </div>
 
               {/* Color Mode & Color Picker */}
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-color-mode">
-                  テーマ色
+                  Color Mode
                 </label>
                 <select
                   id="setting-color-mode"
@@ -306,14 +305,14 @@ export default function App() {
                     updateSetting("colorMode", e.target.value as ColorMode)
                   }
                 >
-                  <option value="custom">カスタム色</option>
-                  <option value="status">状態別 (Done/Active/Crit)</option>
+                  <option value="custom">Custom Color</option>
+                  <option value="status">By Status (Done/Active/Crit)</option>
                 </select>
               </div>
 
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-bar-color">
-                  バーの色
+                  Bar Color
                 </label>
                 <div className="color-picker-wrapper">
                   <input
@@ -341,7 +340,7 @@ export default function App() {
               {/* Background Mode & Color Picker */}
               <div className="setting-item">
                 <label className="setting-label" htmlFor="setting-bg-mode">
-                  背景指定
+                  Background
                 </label>
                 <select
                   id="setting-bg-mode"
@@ -351,15 +350,15 @@ export default function App() {
                     updateSetting("background", e.target.value as BackgroundMode)
                   }
                 >
-                  <option value="color">背景色あり</option>
-                  <option value="transparent">透明</option>
+                  <option value="color">Solid Color</option>
+                  <option value="transparent">Transparent</option>
                 </select>
               </div>
 
               {settings.background === "color" && (
                 <div className="setting-item">
                   <label className="setting-label" htmlFor="setting-bg-color">
-                    背景色
+                    Background Color
                   </label>
                   <div className="color-picker-wrapper">
                     <input
@@ -391,7 +390,7 @@ export default function App() {
           {parseResult.warnings.length > 0 && (
             <div className="panel-section">
               <div className="section-title">
-                警告 ({parseResult.warnings.length})
+                Warnings ({parseResult.warnings.length})
               </div>
               <div className="warnings">
                 {parseResult.warnings.map((w, i) => (
@@ -406,7 +405,7 @@ export default function App() {
 
           {/* Export & Copy Actions */}
           <div className="panel-section">
-            <div className="section-title">エクスポート / コピー</div>
+            <div className="section-title">Export & Copy</div>
             <div className="export-grid">
               <button
                 id="btn-download-svg"
@@ -447,7 +446,7 @@ export default function App() {
         {/* Right Panel */}
         <div className="panel-right">
           <div className="preview-header">
-            <span className="preview-title">プレビュー</span>
+            <span className="preview-title">Preview</span>
             <span className="preview-title" style={{ fontSize: 11, color: "var(--text-muted)" }}>
               {layout.width} × {layout.height}px
             </span>
@@ -462,7 +461,7 @@ export default function App() {
               <div className="preview-empty">
                 <div className="preview-empty-icon">📊</div>
                 <div className="preview-empty-text">
-                  左のテキストエリアにMermaidガント記法を入力してください
+                  Enter Mermaid gantt syntax in the left panel to render preview
                 </div>
               </div>
             )}
