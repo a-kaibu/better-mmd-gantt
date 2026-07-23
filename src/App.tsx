@@ -46,7 +46,12 @@ const BG_COLOR_PRESETS = [
 
 function loadInput(): string {
   try {
-    return localStorage.getItem(STORAGE_KEY_INPUT) || SAMPLE_INPUT;
+    const saved = localStorage.getItem(STORAGE_KEY_INPUT);
+    // Migrate legacy Japanese sample input to English sample input
+    if (!saved || saved.includes("今後の方針") || saved.includes("論文執筆")) {
+      return SAMPLE_INPUT;
+    }
+    return saved;
   } catch {
     return SAMPLE_INPUT;
   }
@@ -85,7 +90,7 @@ export default function App() {
   const [input, setInput] = useState(loadInput);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
 
-  // Persist on change
+  // Persist input on every state change + beforeunload
   useEffect(() => {
     saveInput(input);
   }, [input]);
@@ -93,6 +98,15 @@ export default function App() {
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveInput(input);
+      saveSettings(settings);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [input, settings]);
 
   // Parse and render
   const parseResult = useMemo(() => parseMermaidGantt(input), [input]);
@@ -147,6 +161,14 @@ export default function App() {
       });
   }, [svgString, layout]);
 
+  const handleLoadTemplate = useCallback(() => {
+    setInput(SAMPLE_INPUT);
+  }, []);
+
+  const handleClearInput = useCallback(() => {
+    setInput("");
+  }, []);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -164,13 +186,33 @@ export default function App() {
         <div className="panel-left">
           {/* Input */}
           <div className="panel-section">
-            <div className="section-title">Mermaid Input</div>
+            <div className="section-header">
+              <span className="section-title">Mermaid Input</span>
+              <div className="section-actions">
+                <button
+                  type="button"
+                  className="btn-sm"
+                  onClick={handleLoadTemplate}
+                  title="Reset input to sample English template"
+                >
+                  📄 Sample Template
+                </button>
+                <button
+                  type="button"
+                  className="btn-sm"
+                  onClick={handleClearInput}
+                  title="Clear input text"
+                >
+                  🗑️ Clear
+                </button>
+              </div>
+            </div>
             <textarea
               id="mermaid-input"
               className="mermaid-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="gantt&#10;    title ...&#10;    section ...&#10;    Task :id, 2026-08-01, 2026-10-31"
+              placeholder="gantt&#10;    title Project Roadmap&#10;    dateFormat YYYY-MM-DD&#10;&#10;    section Phase 1&#10;    Task 1 :t1, 2026-08-01, 2026-10-31"
               spellCheck={false}
             />
           </div>
