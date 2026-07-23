@@ -44,10 +44,82 @@ const BG_COLOR_PRESETS = [
   { label: "Sepia", value: "#FDF6E3" },
 ];
 
+function loadFromUrl(): { input?: string; settings?: Partial<DisplaySettings> } | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if ([...params.keys()].length === 0) return null;
+
+    const resInput = params.get("code") || undefined;
+    const resSettings: Partial<DisplaySettings> = {};
+
+    if (params.has("w")) resSettings.outputWidth = Number(params.get("w"));
+    if (params.has("lw")) resSettings.labelWidth = Number(params.get("lw"));
+    if (params.has("rh")) resSettings.rowHeight = Number(params.get("rh"));
+    if (params.has("ts")) resSettings.timeScale = params.get("ts") as TimeScale;
+    if (params.has("df")) resSettings.dateFormatMode = params.get("df") as DateFormatMode;
+    if (params.has("sec")) resSettings.sectionDisplay = params.get("sec") as SectionDisplay;
+    if (params.has("cm")) resSettings.colorMode = params.get("cm") as ColorMode;
+    if (params.has("bc")) resSettings.barColor = `#${params.get("bc")}`;
+    if (params.has("bg")) resSettings.background = params.get("bg") as BackgroundMode;
+    if (params.has("bgc")) resSettings.bgColor = `#${params.get("bgc")}`;
+
+    return { input: resInput, settings: resSettings };
+  } catch {
+    return null;
+  }
+}
+
+function syncUrlParams(input: string, settings: DisplaySettings) {
+  try {
+    const params = new URLSearchParams();
+    if (input && input !== SAMPLE_INPUT) {
+      params.set("code", input);
+    }
+    if (settings.outputWidth !== DEFAULT_SETTINGS.outputWidth) {
+      params.set("w", String(settings.outputWidth));
+    }
+    if (settings.labelWidth !== DEFAULT_SETTINGS.labelWidth) {
+      params.set("lw", String(settings.labelWidth));
+    }
+    if (settings.rowHeight !== DEFAULT_SETTINGS.rowHeight) {
+      params.set("rh", String(settings.rowHeight));
+    }
+    if (settings.timeScale !== DEFAULT_SETTINGS.timeScale) {
+      params.set("ts", settings.timeScale);
+    }
+    if (settings.dateFormatMode !== DEFAULT_SETTINGS.dateFormatMode) {
+      params.set("df", settings.dateFormatMode);
+    }
+    if (settings.sectionDisplay !== DEFAULT_SETTINGS.sectionDisplay) {
+      params.set("sec", settings.sectionDisplay);
+    }
+    if (settings.colorMode !== DEFAULT_SETTINGS.colorMode) {
+      params.set("cm", settings.colorMode);
+    }
+    if (settings.barColor.toUpperCase() !== DEFAULT_SETTINGS.barColor.toUpperCase()) {
+      params.set("bc", settings.barColor.replace("#", ""));
+    }
+    if (settings.background !== DEFAULT_SETTINGS.background) {
+      params.set("bg", settings.background);
+    }
+    if (settings.bgColor.toUpperCase() !== DEFAULT_SETTINGS.bgColor.toUpperCase()) {
+      params.set("bgc", settings.bgColor.replace("#", ""));
+    }
+
+    const query = params.toString();
+    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  } catch {
+    // ignore
+  }
+}
+
+const initialUrlData = loadFromUrl();
+
 function loadInput(): string {
+  if (initialUrlData?.input) return initialUrlData.input;
   try {
     const saved = localStorage.getItem(STORAGE_KEY_INPUT);
-    // Migrate legacy Japanese sample input to English sample input
     if (!saved || saved.includes("今後の方針") || saved.includes("論文執筆")) {
       return SAMPLE_INPUT;
     }
@@ -58,16 +130,19 @@ function loadInput(): string {
 }
 
 function loadSettings(): DisplaySettings {
+  let base = { ...DEFAULT_SETTINGS };
   try {
     const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      base = { ...base, ...JSON.parse(raw) };
     }
   } catch {
     // ignore
   }
-  return { ...DEFAULT_SETTINGS };
+  if (initialUrlData?.settings) {
+    base = { ...base, ...initialUrlData.settings };
+  }
+  return base;
 }
 
 function saveInput(input: string) {
@@ -90,14 +165,16 @@ export default function App() {
   const [input, setInput] = useState(loadInput);
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
 
-  // Persist input on every state change + beforeunload
+  // Persist input/settings & sync to URL
   useEffect(() => {
     saveInput(input);
-  }, [input]);
+    syncUrlParams(input, settings);
+  }, [input, settings]);
 
   useEffect(() => {
     saveSettings(settings);
-  }, [settings]);
+    syncUrlParams(input, settings);
+  }, [input, settings]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -131,6 +208,7 @@ export default function App() {
   // Export & Copy Handlers
   const [svgCopyLabel, setSvgCopyLabel] = useState("📋 SVG Copy");
   const [pngCopyLabel, setPngCopyLabel] = useState("📋 PNG Copy");
+  const [shareLinkLabel, setShareLinkLabel] = useState("🔗 Share Link");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDownloadSVG = useCallback(() => {
@@ -160,6 +238,14 @@ export default function App() {
         alert("Failed to copy PNG: " + (err.message || err));
       });
   }, [svgString, layout]);
+
+  const handleShareLink = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setShareLinkLabel("✅ Link Copied!");
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setShareLinkLabel("🔗 Share Link"), 1500);
+    });
+  }, []);
 
   const handleLoadTemplate = useCallback(() => {
     setInput(SAMPLE_INPUT);
@@ -448,7 +534,7 @@ export default function App() {
 
           {/* Export & Copy Actions */}
           <div className="panel-section">
-            <div className="section-title">Export & Copy</div>
+            <div className="section-title">Export & Share</div>
             <div className="export-grid">
               <button
                 id="btn-download-svg"
@@ -481,6 +567,14 @@ export default function App() {
                 disabled={parseResult.tasks.length === 0}
               >
                 {pngCopyLabel}
+              </button>
+              <button
+                id="btn-share-link"
+                className="btn btn-secondary"
+                style={{ gridColumn: "1 / -1" }}
+                onClick={handleShareLink}
+              >
+                {shareLinkLabel}
               </button>
             </div>
           </div>
