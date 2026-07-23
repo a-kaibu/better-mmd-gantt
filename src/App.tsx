@@ -116,8 +116,8 @@ export default function App() {
   );
 
   // Export & Copy Handlers
-  const [svgCopyLabel, setSvgCopyLabel] = useState("📋 SVG コピー");
-  const [pngCopyLabel, setPngCopyLabel] = useState("📋 PNG コピー");
+  const [svgCopyLabel, setSvgCopyLabel] = useState("📋 SVG Copy");
+  const [pngCopyLabel, setPngCopyLabel] = useState("📋 PNG Copy");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDownloadSVG = useCallback(() => {
@@ -130,18 +130,18 @@ export default function App() {
 
   const handleCopySVG = useCallback(() => {
     navigator.clipboard.writeText(svgString).then(() => {
-      setSvgCopyLabel("✅ コピー完了");
+      setSvgCopyLabel("✅ Copied!");
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setSvgCopyLabel("📋 SVG コピー"), 1500);
+      copyTimerRef.current = setTimeout(() => setSvgCopyLabel("📋 SVG Copy"), 1500);
     });
   }, [svgString]);
 
   const handleCopyPNG = useCallback(() => {
     copyPNG(svgString, layout.width, layout.height, 2)
       .then(() => {
-        setPngCopyLabel("✅ コピー完了");
+        setPngCopyLabel("✅ Copied!");
         if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-        copyTimerRef.current = setTimeout(() => setPngCopyLabel("📋 PNG コピー"), 1500);
+        copyTimerRef.current = setTimeout(() => setPngCopyLabel("📋 PNG Copy"), 1500);
       })
       .catch((err) => {
         alert("PNGのコピーに失敗しました: " + (err.message || err));
@@ -406,7 +406,7 @@ export default function App() {
 
           {/* Export & Copy Actions */}
           <div className="panel-section">
-            <div className="section-title">保存・コピー</div>
+            <div className="section-title">エクスポート / コピー</div>
             <div className="export-grid">
               <button
                 id="btn-download-svg"
@@ -414,7 +414,7 @@ export default function App() {
                 onClick={handleDownloadSVG}
                 disabled={parseResult.tasks.length === 0}
               >
-                📥 SVG 保存
+                📥 SVG Export
               </button>
               <button
                 id="btn-download-png"
@@ -422,7 +422,7 @@ export default function App() {
                 onClick={handleDownloadPNG}
                 disabled={parseResult.tasks.length === 0}
               >
-                📥 PNG 保存
+                📥 PNG Export
               </button>
               <button
                 id="btn-copy-svg"
