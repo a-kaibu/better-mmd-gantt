@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { parseMermaidGantt } from "./parser";
 import { computeLayout } from "./layout";
 import { renderSVG } from "./renderer";
@@ -106,6 +106,17 @@ export default function App() {
   const handleDownloadPNG = useCallback(() => {
     downloadPNG(svgString, "gantt-chart.png", layout.width, layout.height, 2);
   }, [svgString, layout]);
+
+  const [copyLabel, setCopyLabel] = useState("📋 SVGコピー");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopySVG = useCallback(() => {
+    navigator.clipboard.writeText(svgString).then(() => {
+      setCopyLabel("✅ コピー済み");
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyLabel("📋 SVGコピー"), 1500);
+    });
+  }, [svgString]);
 
   return (
     <div className="app">
@@ -281,7 +292,7 @@ export default function App() {
 
           {/* Actions */}
           <div className="panel-section">
-            <div className="section-title">保存</div>
+            <div className="section-title">保存・コピー</div>
             <div className="button-group">
               <button
                 id="btn-download-svg"
@@ -298,6 +309,14 @@ export default function App() {
                 disabled={parseResult.tasks.length === 0}
               >
                 📥 PNG保存
+              </button>
+              <button
+                id="btn-copy-svg"
+                className="btn btn-secondary"
+                onClick={handleCopySVG}
+                disabled={parseResult.tasks.length === 0}
+              >
+                {copyLabel}
               </button>
             </div>
           </div>
